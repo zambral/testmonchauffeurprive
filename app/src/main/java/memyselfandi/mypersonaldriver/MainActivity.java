@@ -199,7 +199,6 @@ public class MainActivity extends AppCompatActivity implements OnRecyclerItemCli
 
             @Override
             public void onNext(Address address) {
-                //updateMapWithPin(
                 mapBoxContainer.onLocationSelected(address.getAddressLine(0), address.getLatitude(), address.getLongitude());
             }
 
