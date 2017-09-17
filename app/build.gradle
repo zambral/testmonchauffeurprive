@@ -10,11 +10,27 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+        buildConfigField "String", "MAP_API_KEY", "null"
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    productFlavors {
+        dev {
+            buildConfigField "String", "MAP_API_KEY", "\"pk.eyJ1IjoiemFtYnJhbCIsImEiOiJjajdvd25vNHYzZWZwMzdxbWxxY216dTZtIn0.RTC8b6Z5o6pcZzH8B9cU6A\""
+        }
+
+        stagging {
+
+        }
+
+        prod{
+
         }
     }
 }
@@ -30,7 +46,10 @@ dependencies {
     compile('com.mapbox.mapboxsdk:mapbox-android-sdk:5.1.3@aar') {
         transitive=true
     }
+    compile 'com.mapbox.mapboxsdk:mapbox-android-plugin-locationlayer:0.1.0'
 
     compile 'com.jakewharton:butterknife:8.8.1'
     annotationProcessor 'com.jakewharton:butterknife-compiler:8.8.1'
+
+    compile 'com.jakewharton.timber:timber:4.5.1'
 }
