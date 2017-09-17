@@ -9,4 +9,4 @@ Les écrans principaux sont là et laisse la place à la personnalisation.
 
 Par exemple le menu latéral pourrait contenir un écran specifiant qu'il n'y a pas d'historique pour le moment.
 
-J'ai préféré me focaliser sur la fonctionnalité principale.
+J'ai préféré me focaliser sur les fonctionnalités principales.
