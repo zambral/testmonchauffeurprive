@@ -1,9 +1,11 @@
 package memyselfandi.mypersonaldriver;
 
+import android.location.Address;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
 
@@ -17,25 +19,37 @@ import com.mapbox.mapboxsdk.maps.MapboxMap;
 import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
 import com.mapbox.mapboxsdk.plugins.locationlayer.LocationLayerMode;
 import com.mapbox.mapboxsdk.plugins.locationlayer.LocationLayerPlugin;
+import com.mapbox.services.android.geocoder.AndroidGeocoder;
 import com.mapbox.services.android.location.LostLocationEngine;
 import com.mapbox.services.android.telemetry.location.LocationEngine;
 import com.mapbox.services.android.telemetry.location.LocationEngineListener;
 import com.mapbox.services.android.telemetry.location.LocationEnginePriority;
 import com.mapbox.services.android.telemetry.permissions.PermissionsListener;
 import com.mapbox.services.android.telemetry.permissions.PermissionsManager;
+import com.mapbox.services.android.ui.geocoder.GeocoderAutoCompleteView;
 import com.mapbox.services.api.geocoding.v5.GeocodingCriteria;
 import com.mapbox.services.api.geocoding.v5.models.CarmenFeature;
 import com.mapbox.services.commons.models.Position;
-import com.mapbox.services.android.ui.geocoder.GeocoderAutoCompleteView;
 
 import java.util.List;
+import java.util.Locale;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import io.reactivex.Observable;
+import io.reactivex.ObservableSource;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
+import timber.log.Timber;
 
 //BROKEN : https://github.com/mapbox/mapbox-android-demo/blob/master/MapboxAndroidDemo/src/main/java/com/mapbox/mapboxandroiddemo/examples/location/BasicUserLocation.java
 //WORKING : https://github.com/mapbox/mapbox-android-demo/blob/master/MapboxAndroidDemo/src/main/java/com/mapbox/mapboxandroiddemo/examples/plugins/LocationPluginActivity.java
-public class MainActivity extends AppCompatActivity implements LocationEngineListener, PermissionsListener, GeocoderAutoCompleteView.OnFeatureListener, OnMapReadyCallback {
+public class MainActivity extends AppCompatActivity implements LocationEngineListener, PermissionsListener,
+        GeocoderAutoCompleteView.OnFeatureListener, OnMapReadyCallback, MapboxMap.OnMapClickListener,
+        Observer<Address>{
 
     @BindView(R.id.mapView)
     MapView mapView;
@@ -44,6 +58,8 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     private PermissionsManager permissionsManager;
     private LocationLayerPlugin locationPlugin;
     private LocationEngine locationEngine;
+
+    private Disposable currentDisposable = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +78,10 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     }
 
     private void updateMap(String address,double latitude, double longitude) {
+        if(TextUtils.isEmpty(address)) {
+            Timber.e("no title for marker");
+            return;
+        }
         // Build marker
         mapboxMap.addMarker(new MarkerOptions()
                 .position(new LatLng(latitude, longitude))
@@ -82,7 +102,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                 imm.hideSoftInputFromWindow(this.getCurrentFocus().getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
             }
         } catch (Exception exception) {
-            throw new RuntimeException(exception);
+            Timber.e(exception);
         }
 
     }
@@ -199,6 +219,12 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         if (locationEngine != null) {
             locationEngine.deactivate();
         }
+
+        if(this.currentDisposable != null) {
+            this.currentDisposable.dispose();
+        }
+
+        this.currentDisposable = null;
         super.onDestroy();
     }
 
@@ -219,5 +245,51 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     public void onMapReady(MapboxMap mapboxMap) {
         this.mapboxMap = mapboxMap;
         enableLocationPlugin();
+        mapboxMap.setOnMapClickListener(this);
+    }
+
+    private void getAddressFromGeoPoint(@NonNull LatLng point){
+        if(this.currentDisposable != null) return;
+
+        Observable.just(point)
+                .subscribeOn(Schedulers.io())
+                .flatMap(new Function<LatLng, ObservableSource<Address>>() {
+                    @Override
+                    public ObservableSource<Address> apply(LatLng latLng) throws Exception {
+                        AndroidGeocoder geocoder = new AndroidGeocoder(MainActivity.this, Locale.getDefault());
+                        geocoder.setAccessToken(Mapbox.getAccessToken());
+                        List<Address> addresses = geocoder.getFromLocation(latLng.getLatitude(), latLng.getLongitude(), 1);
+                        Address address = addresses.get(0);
+                        return Observable.just(address);
+                    }
+                })
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this);
+    }
+
+    @Override
+    public void onMapClick(@NonNull LatLng point) {
+        getAddressFromGeoPoint(point);
+    }
+
+    @Override
+    public void onSubscribe(Disposable d) {
+        this.currentDisposable = d;
+    }
+
+    @Override
+    public void onNext(Address address) {
+        updateMap(address.getAddressLine(0),address.getLatitude(),address.getLongitude());
+    }
+
+    @Override
+    public void onError(Throwable e) {
+        this.currentDisposable = null;
+        Toast.makeText(MainActivity.this,"No addresses found",Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onComplete() {
+        this.currentDisposable = null;
     }
 }
