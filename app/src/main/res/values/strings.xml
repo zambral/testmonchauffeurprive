@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">My personal driver</string>
     <string name="user_location_permission_not_granted">User location permission not granted</string>
+    <string name="write_an_address">Write an address</string>
 </resources>

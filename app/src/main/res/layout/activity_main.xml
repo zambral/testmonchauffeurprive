@@ -15,4 +15,33 @@
         mapbox:mapbox_styleUrl="mapbox://styles/mapbox/streets-v10"
         mapbox:mapbox_cameraZoom="11" />
 
+    <com.mapbox.services.android.ui.geocoder.GeocoderAutoCompleteView
+        android:id="@+id/query"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="20dp"
+        android:background="@android:color/white"
+        android:elevation="12dp"
+        android:hint="@string/write_an_address"
+        android:padding="10dp"
+        android:maxLines="1"
+        android:textColor="@android:color/black"/>
+    <!--<LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:gravity="center"
+        android:minHeight="48dp"
+        android:layout_margin="20dp"
+        android:background="@android:color/white">
+
+        <EditText
+            android:layout_width="match_parent"
+            android:hint="@string/write_an_address"
+            android:maxLines="1"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout> -->
+
 </RelativeLayout>
