@@ -4,8 +4,15 @@ import android.location.Address;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
+import android.view.Gravity;
+import android.view.MenuItem;
+import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
 
@@ -43,16 +50,25 @@ import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
+import memyselfandi.mypersonaldriver.adapter.PlaceAdapter;
+import memyselfandi.mypersonaldriver.data.Place;
+import memyselfandi.mypersonaldriver.utils.OnRecyclerItemClickListener;
+import memyselfandi.mypersonaldriver.utils.PlaceHelper;
 import timber.log.Timber;
 
 //BROKEN : https://github.com/mapbox/mapbox-android-demo/blob/master/MapboxAndroidDemo/src/main/java/com/mapbox/mapboxandroiddemo/examples/location/BasicUserLocation.java
 //WORKING : https://github.com/mapbox/mapbox-android-demo/blob/master/MapboxAndroidDemo/src/main/java/com/mapbox/mapboxandroiddemo/examples/plugins/LocationPluginActivity.java
 public class MainActivity extends AppCompatActivity implements LocationEngineListener, PermissionsListener,
-        GeocoderAutoCompleteView.OnFeatureListener, OnMapReadyCallback, MapboxMap.OnMapClickListener,
-        Observer<Address>{
+        GeocoderAutoCompleteView.OnFeatureListener, OnMapReadyCallback, MapboxMap.OnMapClickListener, OnRecyclerItemClickListener {
 
     @BindView(R.id.mapView)
     MapView mapView;
+
+    @BindView(R.id.recycler_view_left_drawer)
+    RecyclerView recyclerview;
+
+    @BindView(R.id.drawer_layout)
+    DrawerLayout drawerLayout;
 
     private MapboxMap mapboxMap = null;
     private PermissionsManager permissionsManager;
@@ -67,6 +83,26 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
 
+        initActionBar();
+        initMap(savedInstanceState);
+        initRecyclerView();
+    }
+
+    private void initActionBar() {
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar == null) return;
+
+        actionBar.setDisplayHomeAsUpEnabled(true);
+        actionBar.setHomeButtonEnabled(true);
+        actionBar.setHomeAsUpIndicator(R.mipmap.ic_launcher_round);
+    }
+
+    private void initRecyclerView() {
+        recyclerview.setLayoutManager(new LinearLayoutManager(this));
+        recyclerview.setAdapter(new PlaceAdapter(this, this));
+    }
+
+    private void initMap(Bundle savedInstanceState) {
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
 
@@ -77,20 +113,31 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         autocomplete.setOnFeatureListener(this);
     }
 
-    private void updateMap(String address,double latitude, double longitude) {
-        if(TextUtils.isEmpty(address)) {
+    private void updateMapWithPin(String address, double latitude, double longitude) {
+        if (TextUtils.isEmpty(address)) {
             Timber.e("no title for marker");
             return;
         }
+
+        Place removed = PlaceHelper.getInstance().addPlace(new Place(address, latitude, longitude));
+        if (removed != null) {
+            //in order not to keep any references to MarkerView
+            mapboxMap.removeAnnotations();
+        }
+
         // Build marker
         mapboxMap.addMarker(new MarkerOptions()
                 .position(new LatLng(latitude, longitude))
                 .title(address));
 
-        // Animate camera to geocoder result location
+        zoomOnPosition(latitude, longitude, 15);
+        ((PlaceAdapter) recyclerview.getAdapter()).updatePlaces();
+    }
+
+    private void zoomOnPosition(double latitude, double longitude, int zoom) {
         CameraPosition cameraPosition = new CameraPosition.Builder()
                 .target(new LatLng(latitude, longitude))
-                .zoom(15)
+                .zoom(zoom)
                 .build();
         mapboxMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 3000, null);
     }
@@ -107,7 +154,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
 
     }
 
-    @SuppressWarnings( {"MissingPermission"})
+    @SuppressWarnings({"MissingPermission"})
     private void enableLocationPlugin() {
         // Check if permissions are enabled and if not request
         if (PermissionsManager.areLocationPermissionsGranted(this)) {
@@ -122,7 +169,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         }
     }
 
-    @SuppressWarnings( {"MissingPermission"})
+    @SuppressWarnings({"MissingPermission"})
     private void initializeLocationEngine() {
         locationEngine = new LostLocationEngine(MainActivity.this);
         locationEngine.setPriority(LocationEnginePriority.HIGH_ACCURACY);
@@ -158,8 +205,22 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         }
     }
 
+
     @Override
-    @SuppressWarnings( {"MissingPermission"})
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            if (drawerLayout.isDrawerOpen(Gravity.LEFT)) {
+                drawerLayout.closeDrawer(Gravity.LEFT);
+            } else {
+                drawerLayout.openDrawer(Gravity.LEFT);
+            }
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    @SuppressWarnings({"MissingPermission"})
     public void onConnected() {
         locationEngine.requestLocationUpdates();
     }
@@ -173,7 +234,7 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     }
 
     @Override
-    @SuppressWarnings( {"MissingPermission"})
+    @SuppressWarnings({"MissingPermission"})
     public void onStart() {
         super.onStart();
         if (locationPlugin != null) {
@@ -220,10 +281,11 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
             locationEngine.deactivate();
         }
 
-        if(this.currentDisposable != null) {
+        if (this.currentDisposable != null) {
             this.currentDisposable.dispose();
         }
 
+        PlaceHelper.getInstance().savePlaces(this);
         this.currentDisposable = null;
         super.onDestroy();
     }
@@ -238,7 +300,41 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     public void onFeatureClick(CarmenFeature feature) {
         hideOnScreenKeyboard();
         Position position = feature.asPosition();
-        updateMap(feature.getPlaceName(),position.getLatitude(), position.getLongitude());
+        updateMapWithPin(feature.getPlaceName(), position.getLatitude(), position.getLongitude());
+    }
+
+    private Observer<Place[]> restorePlacesObserver() {
+        return new Observer<Place[]>() {
+            @Override
+            public void onSubscribe(Disposable d) {
+                currentDisposable = d;
+            }
+
+            @Override
+            public void onNext(Place[] places) {
+                addPlacesToMap(places);
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                currentDisposable = null;
+            }
+
+            @Override
+            public void onComplete() {
+                currentDisposable = null;
+            }
+        };
+    }
+
+    private void addPlacesToMap(Place[] places) {
+        if (places == null || places.length == 0) return;
+
+        for (Place place : places) {
+            mapboxMap.addMarker(new MarkerOptions()
+                    .position(new LatLng(place.getLat(), place.getLng()))
+                    .title(place.getDescription()));
+        }
     }
 
     @Override
@@ -246,10 +342,21 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         this.mapboxMap = mapboxMap;
         enableLocationPlugin();
         mapboxMap.setOnMapClickListener(this);
+        Observable.just("")
+                .subscribeOn(Schedulers.io())
+                .flatMap(new Function<String, ObservableSource<Place[]>>() {
+                    @Override
+                    public ObservableSource<Place[]> apply(String s) throws Exception {
+                        Place[] places = PlaceHelper.getInstance().getPlaces();
+                        return Observable.just(places);
+                    }
+                })
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(restorePlacesObserver());
     }
 
-    private void getAddressFromGeoPoint(@NonNull LatLng point){
-        if(this.currentDisposable != null) return;
+    private void getAddressFromGeoPoint(@NonNull LatLng point) {
+        if (this.currentDisposable != null) return;
 
         Observable.just(point)
                 .subscribeOn(Schedulers.io())
@@ -264,7 +371,32 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
                     }
                 })
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(this);
+                .subscribe(addressFromGeoPointObserver());
+    }
+
+    private Observer<Address> addressFromGeoPointObserver() {
+        return new Observer<Address>() {
+            @Override
+            public void onSubscribe(Disposable d) {
+                currentDisposable = d;
+            }
+
+            @Override
+            public void onNext(Address address) {
+                updateMapWithPin(address.getAddressLine(0), address.getLatitude(), address.getLongitude());
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                currentDisposable = null;
+                Toast.makeText(MainActivity.this, "No addresses found", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onComplete() {
+                currentDisposable = null;
+            }
+        };
     }
 
     @Override
@@ -273,23 +405,13 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
     }
 
     @Override
-    public void onSubscribe(Disposable d) {
-        this.currentDisposable = d;
-    }
+    public void onItemClickListener(View view, int position) {
+        if (view.getId() == R.id.cell_place) {
+            Place place = ((PlaceAdapter) recyclerview.getAdapter()).getItem(position);
+            if (place == null) return;
 
-    @Override
-    public void onNext(Address address) {
-        updateMap(address.getAddressLine(0),address.getLatitude(),address.getLongitude());
-    }
-
-    @Override
-    public void onError(Throwable e) {
-        this.currentDisposable = null;
-        Toast.makeText(MainActivity.this,"No addresses found",Toast.LENGTH_SHORT).show();
-    }
-
-    @Override
-    public void onComplete() {
-        this.currentDisposable = null;
+            zoomOnPosition(place.getLat(), place.getLng(), 16);
+            drawerLayout.closeDrawer(Gravity.LEFT);
+        }
     }
 }
