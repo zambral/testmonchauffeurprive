@@ -219,6 +219,12 @@ public class MainActivity extends AppCompatActivity implements LocationEngineLis
         if (locationEngine != null) {
             locationEngine.deactivate();
         }
+
+        if(this.currentDisposable != null) {
+            this.currentDisposable.dispose();
+        }
+
+        this.currentDisposable = null;
         super.onDestroy();
     }
 
