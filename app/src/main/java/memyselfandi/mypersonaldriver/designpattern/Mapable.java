@@ -13,7 +13,7 @@ import memyselfandi.mypersonaldriver.data.Place;
  * Created by llefoulon on 17/09/2017.
  */
 
-public interface Mappable {
+public interface Mapable {
     void initMap(@NonNull View view, @Nullable Bundle bundle);
 
     void onMapReady();

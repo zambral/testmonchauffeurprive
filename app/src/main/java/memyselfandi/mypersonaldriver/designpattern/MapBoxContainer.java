@@ -46,7 +46,7 @@ import timber.log.Timber;
  * Created by llefoulon on 17/09/2017.
  */
 
-public class MapBoxContainer implements Mappable, OnMapReadyCallback,
+public class MapBoxContainer implements Mapable, OnMapReadyCallback,
         GeocoderAutoCompleteView.OnFeatureListener, MapboxMap.OnMapClickListener, PermissionsListener,
         LocationEngineListener {
 

@@ -27,6 +27,7 @@ import memyselfandi.mypersonaldriver.adapter.PlaceAdapter;
 import memyselfandi.mypersonaldriver.data.LatLngLight;
 import memyselfandi.mypersonaldriver.data.Place;
 import memyselfandi.mypersonaldriver.designpattern.MapBoxContainer;
+import memyselfandi.mypersonaldriver.designpattern.Mapable;
 import memyselfandi.mypersonaldriver.utils.MapListener;
 import memyselfandi.mypersonaldriver.utils.OnRecyclerItemClickListener;
 import memyselfandi.mypersonaldriver.utils.PlaceHelper;
@@ -36,7 +37,7 @@ import timber.log.Timber;
 //WORKING : https://github.com/mapbox/mapbox-android-demo/blob/master/MapboxAndroidDemo/src/main/java/com/mapbox/mapboxandroiddemo/examples/plugins/LocationPluginActivity.java
 public class MainActivity extends AppCompatActivity implements OnRecyclerItemClickListener, MapListener {
 
-    private MapBoxContainer mapBoxContainer;
+    private Mapable mapable;
 
     @BindView(R.id.recycler_view_left_drawer)
     RecyclerView recyclerview;
@@ -53,8 +54,8 @@ public class MainActivity extends AppCompatActivity implements OnRecyclerItemCli
         ButterKnife.bind(this);
 
         View mainView = findViewById(android.R.id.content);
-        mapBoxContainer = new MapBoxContainer(this, this, mainView);
-        mapBoxContainer.initMap(mainView, savedInstanceState);
+        mapable = new MapBoxContainer(this, this, mainView);
+        mapable.initMap(mainView, savedInstanceState);
         initActionBar();
         initRecyclerView();
     }
@@ -76,7 +77,7 @@ public class MainActivity extends AppCompatActivity implements OnRecyclerItemCli
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        mapBoxContainer.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        mapable.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
     @Override
@@ -96,37 +97,37 @@ public class MainActivity extends AppCompatActivity implements OnRecyclerItemCli
     @SuppressWarnings({"MissingPermission"})
     public void onStart() {
         super.onStart();
-        mapBoxContainer.onStart();
+        mapable.onStart();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        mapBoxContainer.onResume();
+        mapable.onResume();
     }
 
     @Override
     public void onPause() {
-        mapBoxContainer.onPause();
+        mapable.onPause();
         super.onPause();
     }
 
     @Override
     public void onStop() {
-        mapBoxContainer.onStop();
+        mapable.onStop();
         super.onStop();
 
     }
 
     @Override
     public void onLowMemory() {
-        mapBoxContainer.onLowMemory();
+        mapable.onLowMemory();
         super.onLowMemory();
     }
 
     @Override
     protected void onDestroy() {
-        mapBoxContainer.onDestroy();
+        mapable.onDestroy();
 
         PlaceHelper.getInstance().savePlaces(this);
         this.currentDisposable = null;
@@ -135,7 +136,7 @@ public class MainActivity extends AppCompatActivity implements OnRecyclerItemCli
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
-        mapBoxContainer.onSaveInstanceState(outState);
+        mapable.onSaveInstanceState(outState);
         super.onSaveInstanceState(outState);
     }
 
@@ -167,7 +168,7 @@ public class MainActivity extends AppCompatActivity implements OnRecyclerItemCli
         if (places == null || places.length == 0) return;
 
         for (Place place : places) {
-            mapBoxContainer.addPlace(place);
+            mapable.addPlace(place);
         }
     }
 
@@ -179,7 +180,7 @@ public class MainActivity extends AppCompatActivity implements OnRecyclerItemCli
                 .flatMap(new Function<LatLngLight, ObservableSource<Address>>() {
                     @Override
                     public ObservableSource<Address> apply(LatLngLight latLng) {
-                        Address address = mapBoxContainer.getAddressFromLatNLng(latLng.getLatitude(), latLng.getLongitude());
+                        Address address = mapable.getAddressFromLatNLng(latLng.getLatitude(), latLng.getLongitude());
                         if (address == null)
                             return Observable.error(new Throwable("address null"));
 
@@ -199,7 +200,7 @@ public class MainActivity extends AppCompatActivity implements OnRecyclerItemCli
 
             @Override
             public void onNext(Address address) {
-                mapBoxContainer.onLocationSelected(address.getAddressLine(0), address.getLatitude(), address.getLongitude());
+                mapable.onLocationSelected(address.getAddressLine(0), address.getLatitude(), address.getLongitude());
             }
 
             @Override
@@ -260,7 +261,7 @@ public class MainActivity extends AppCompatActivity implements OnRecyclerItemCli
             Place place = ((PlaceAdapter) recyclerview.getAdapter()).getItem(position);
             if (place == null) return;
 
-            mapBoxContainer.zoomOnPosition(place.getLat(), place.getLng(), 16);
+            mapable.zoomOnPosition(place.getLat(), place.getLng(), 16);
             drawerLayout.closeDrawer(Gravity.LEFT);
         }
     }
