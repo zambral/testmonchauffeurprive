@@ -64,3 +64,5 @@ gradlew.bat
 .idea/copyright/profiles_settings.xml
 gradle/wrapper/gradle-wrapper.jar
 gradle/wrapper/gradle-wrapper.properties
+.idea/vcs.xml
+.idea/sonarlint/issuestore/index.pb
